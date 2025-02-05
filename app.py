@@ -1,31 +1,35 @@
 from flask import Flask, request, jsonify
 import gspread
-import json
 import os
 from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-# ✅ Step 1: Load and fix Google Service Account credentials
-raw_credentials = os.getenv("GOOGLE_CREDENTIALS")
-if not raw_credentials:
-    raise ValueError("❌ GOOGLE_CREDENTIALS is missing! Check Render environment variables.")
-
-try:
-    SERVICE_ACCOUNT_INFO = json.loads(raw_credentials)
-    if "private_key" in SERVICE_ACCOUNT_INFO:
-        SERVICE_ACCOUNT_INFO["private_key"] = SERVICE_ACCOUNT_INFO["private_key"].replace("\\n", "\n")  # Fix newlines
-    print("✅ Successfully loaded and formatted credentials!")
-except json.JSONDecodeError as e:
-    raise ValueError(f"❌ JSON Parsing Error: {e}")
+# ✅ Step 1: Load Google Credentials from Environment Variables
+SERVICE_ACCOUNT_INFO = {
+    "type": "service_account",
+    "project_id": os.getenv("GOOGLE_PROJECT_ID"),
+    "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
+    "private_key": os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n"),  # Fix \n issues
+    "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
+    "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL"),
+    "universe_domain": "googleapis.com"
+}
 
 # ✅ Step 2: Authenticate with Google Sheets API
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
-gc = gspread.authorize(creds)
+try:
+    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    gc = gspread.authorize(creds)
+    print("✅ Google Sheets API authentication successful!")
+except Exception as e:
+    raise ValueError(f"❌ Google Sheets API initialization failed: {e}")
 
 # ✅ Step 3: Open Google Sheet
-SPREADSHEET_ID = "1ixnyPaYJydg9T8iJzLIMDlX1EyJcdz7KBKSy7slubqI"  # Replace with actual Sheet ID
+SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")  # Load Sheet ID from environment variable
 sheet = gc.open_by_key(SPREADSHEET_ID).sheet1  # First sheet
 
 @app.route("/webhook", methods=["POST"])
@@ -45,5 +49,5 @@ def webhook():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Use Render's assigned port
+    port = int(os.getenv("PORT", 10000))  # Use Render's assigned port
     app.run(host="0.0.0.0", port=port)
