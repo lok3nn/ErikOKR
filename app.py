@@ -6,33 +6,34 @@ from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-try:
-    # Load Google Sheets API credentials from environment variable
-    GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
-    if not GOOGLE_CREDENTIALS:
-        raise ValueError("GOOGLE_CREDENTIALS environment variable is missing!")
+# Load credentials manually
+raw_credentials = os.getenv("GOOGLE_CREDENTIALS")
+if raw_credentials is None:
+    raise ValueError("❌ GOOGLE_CREDENTIALS is missing!")
 
-    SERVICE_ACCOUNT_INFO = json.loads(GOOGLE_CREDENTIALS)
-    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
-    
-    # Open Google Sheet
-    gc = gspread.authorize(creds)
-    SPREADSHEET_ID = "1ixnyPaYJydg9T8iJzLIMDlX1EyJcdz7KBKSy7slubqI"  # Replace with your actual Google Sheet ID
-    sheet = gc.open_by_key(SPREADSHEET_ID).sheet1  # First sheet
-except Exception as e:
-    print(f"❌ Failed to initialize Google Sheets API: {e}")
-    raise
+SERVICE_ACCOUNT_INFO = json.loads(raw_credentials)
+
+# Ensure the private key is correctly formatted
+SERVICE_ACCOUNT_INFO["private_key"] = SERVICE_ACCOUNT_INFO["private_key"].replace("\\n", "\n")
+
+# Authenticate with Google Sheets
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPES)
+
+gc = gspread.authorize(creds)
+
+# Open Google Sheet
+SPREADSHEET_ID = "1ixnyPaYJydg9T8iJzLIMDlX1EyJcdz7KBKSy7slubqI"
+sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        data = request.json  # Parse JSON data from Grafana
-        timestamp = request.headers.get("Date", "No Timestamp")  # Use Grafana's timestamp if available
+        data = request.json
+        timestamp = request.headers.get("Date")
         metric_name = data.get("title", "Unknown Metric")
         value = data.get("state", "No Data")
 
-        # Append data to Google Sheets
         sheet.append_row([timestamp, metric_name, value])
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
@@ -40,5 +41,5 @@ def webhook():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Use Render's assigned port
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
