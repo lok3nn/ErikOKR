@@ -2,10 +2,11 @@ from flask import Flask, request, jsonify
 import gspread
 import os
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 app = Flask(__name__)
 
-# ✅ Step 1: Load Google Credentials from Environment Variables
+# ✅ Load Google Credentials from Environment Variables
 SERVICE_ACCOUNT_INFO = {
     "type": "service_account",
     "project_id": os.getenv("GOOGLE_PROJECT_ID"),
@@ -20,7 +21,7 @@ SERVICE_ACCOUNT_INFO = {
     "universe_domain": "googleapis.com"
 }
 
-# ✅ Step 2: Authenticate with Google Sheets API
+# ✅ Authenticate with Google Sheets API
 try:
     creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=["https://www.googleapis.com/auth/spreadsheets"])
     gc = gspread.authorize(creds)
@@ -28,7 +29,7 @@ try:
 except Exception as e:
     raise ValueError(f"❌ Google Sheets API initialization failed: {e}")
 
-# ✅ Step 3: Open Google Sheet
+# ✅ Open Google Sheet
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")  # Load Sheet ID from environment variable
 sheet = gc.open_by_key(SPREADSHEET_ID).sheet1  # First sheet
 
@@ -37,12 +38,27 @@ def webhook():
     """Handles incoming data from Grafana and logs it to Google Sheets."""
     try:
         data = request.json  # Parse JSON payload from Grafana
-        timestamp = request.headers.get("Date", "No Timestamp")
+
+        # ✅ Extract the timestamp
+        timestamp = data.get("startsAt", None)
+        if not timestamp:
+            timestamp = datetime.utcnow().isoformat()  # Default to current UTC time
+
+        # ✅ Extract the metric name
         metric_name = data.get("title", "Unknown Metric")
-        value = data.get("state", "No Data")
+
+        # ✅ Extract the state (FIRING / RESOLVED)
+        alert_state = data.get("state", "Unknown State")
+
+        # ✅ Extract the alert value (from evalMatches or valueString)
+        value = "No Data"
+        if "valueString" in data:
+            value = data["valueString"]
+        elif "evalMatches" in data and isinstance(data["evalMatches"], list) and len(data["evalMatches"]) > 0:
+            value = data["evalMatches"][0].get("value", "No Data")  # Get first evaluation match
 
         # ✅ Append data to Google Sheets
-        sheet.append_row([timestamp, metric_name, value])
+        sheet.append_row([timestamp, metric_name, alert_state, value])
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
     except Exception as e:
