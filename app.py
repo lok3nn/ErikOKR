@@ -41,28 +41,31 @@ def webhook():
         data = request.json  # Parse JSON payload
         print("📥 Received Webhook Data:", json.dumps(data, indent=4))  # Debugging
 
-        # ✅ Extract timestamp
+        # ✅ Extract timestamp (use UTC time if missing)
         timestamp = data.get("timestamp", datetime.utcnow().isoformat())
 
-        # ✅ Extract metric name
+        # ✅ Extract metric name (alert rule name)
         metric_name = data.get("title", "Unknown Metric")
 
         # ✅ Extract alert state (FIRING / RESOLVED)
         alert_state = data.get("state", "Unknown State")
 
-        # ✅ Extract market (now stored as "metric") and value
-        market = "Unknown Market"
-        value = "No Data"
+        # ✅ Extract all markets and values
+        rows_to_append = []
 
-        if "evalMatches" in data and isinstance(data["evalMatches"], list) and len(data["evalMatches"]) > 0:
-            first_match = data["evalMatches"][0]  # Get first entry
-            market = first_match.get("metric", "Unknown Market")  # Now uses "metric"
-            value = str(first_match.get("value", "No Data"))
+        if "evalMatches" in data and isinstance(data["evalMatches"], list):
+            for match in data["evalMatches"]:
+                market = match.get("market", "Unknown Market")  # Extract market name
+                value = str(match.get("value", "No Data"))  # Extract value
+                
+                print(f"📊 Alert for {market}: {value}")
 
-        print(f"📊 Parsed Data: Timestamp: {timestamp}, Market: {market}, Metric: {metric_name}, State: {alert_state}, Value: {value}")
+                # ✅ Append each market's data
+                rows_to_append.append([timestamp, market, metric_name, alert_state, value])
 
-        # ✅ Append data to Google Sheets
-        sheet.append_row([timestamp, market, metric_name, alert_state, value])
+        # ✅ Bulk insert into Google Sheets (reduces API calls)
+        if rows_to_append:
+            sheet.append_rows(rows_to_append)
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
 
