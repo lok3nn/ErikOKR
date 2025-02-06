@@ -42,7 +42,7 @@ def webhook():
         print("📥 Received Webhook Data:", json.dumps(data, indent=4))  # Debugging
 
         # ✅ Extract timestamp
-        timestamp = data.get("startsAt", datetime.utcnow().isoformat())  # Default to now
+        timestamp = data.get("timestamp", datetime.utcnow().isoformat())
 
         # ✅ Extract metric name
         metric_name = data.get("title", "Unknown Metric")
@@ -50,13 +50,10 @@ def webhook():
         # ✅ Extract alert state (FIRING / RESOLVED)
         alert_state = data.get("state", "Unknown State")
 
-        # ✅ Extract value (Ensure it's correctly parsed)
+        # ✅ Extract value from `evalMatches`
         value = "No Data"
-        if "valueString" in data:
-            value = data["valueString"]
-        elif "evalMatches" in data and isinstance(data["evalMatches"], list):
-            if len(data["evalMatches"]) > 0:
-                value = str(data["evalMatches"][0].get("value", "No Data"))
+        if "evalMatches" in data and isinstance(data["evalMatches"], list) and len(data["evalMatches"]) > 0:
+            value = str(data["evalMatches"][0].get("value", "No Data"))
 
         print(f"📊 Parsed Data: Timestamp: {timestamp}, Metric: {metric_name}, State: {alert_state}, Value: {value}")
 
