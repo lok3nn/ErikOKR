@@ -50,15 +50,19 @@ def webhook():
         # ✅ Extract alert state (FIRING / RESOLVED)
         alert_state = data.get("state", "Unknown State")
 
-        # ✅ Extract value from `evalMatches`
+        # ✅ Extract market (now stored as "metric") and value
+        market = "Unknown Market"
         value = "No Data"
-        if "evalMatches" in data and isinstance(data["evalMatches"], list) and len(data["evalMatches"]) > 0:
-            value = str(data["evalMatches"][0].get("value", "No Data"))
 
-        print(f"📊 Parsed Data: Timestamp: {timestamp}, Metric: {metric_name}, State: {alert_state}, Value: {value}")
+        if "evalMatches" in data and isinstance(data["evalMatches"], list) and len(data["evalMatches"]) > 0:
+            first_match = data["evalMatches"][0]  # Get first entry
+            market = first_match.get("metric", "Unknown Market")  # Now uses "metric"
+            value = str(first_match.get("value", "No Data"))
+
+        print(f"📊 Parsed Data: Timestamp: {timestamp}, Market: {market}, Metric: {metric_name}, State: {alert_state}, Value: {value}")
 
         # ✅ Append data to Google Sheets
-        sheet.append_row([timestamp, metric_name, alert_state, value])
+        sheet.append_row([timestamp, market, metric_name, alert_state, value])
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
 
