@@ -56,14 +56,19 @@ def webhook():
         if "evalMatches" in data and isinstance(data["evalMatches"], list):
             for match in data["evalMatches"]:
                 market = match.get("market", "Unknown Market")  # Extract market name
-                value = str(match.get("value", "No Data"))  # Extract value
+                value = str(match.get("value", "No Data"))  # Ensure value is a string
                 
+                # ✅ Filter out incorrect values (boolean 1 or 0 instead of real percentage)
+                if value in ["1", "0", "1e+00", "0e+00"]:
+                    print(f"⚠️ Ignoring incorrect value for {market}: {value}")
+                    continue
+
                 print(f"📊 Alert for {market}: {value}")
 
                 # ✅ Append each market's data
                 rows_to_append.append([timestamp, market, metric_name, alert_state, value])
 
-        # ✅ Bulk insert into Google Sheets (reduces API calls)
+        # ✅ Bulk insert into Google Sheets
         if rows_to_append:
             sheet.append_rows(rows_to_append)
 
