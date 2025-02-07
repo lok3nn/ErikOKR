@@ -43,7 +43,7 @@ def webhook():
     try:
         data = request.json  # Parse JSON payload from Grafana
         print("\n🚀 FULL INCOMING WEBHOOK DATA 🚀")
-        print(data)
+        print(json.dumps(data, indent=2))  # Pretty-print JSON for debugging
 
         # ✅ Extract timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
@@ -58,8 +58,13 @@ def webhook():
         values = []
         if "alerts" in data and isinstance(data["alerts"], list):
             for alert in data["alerts"]:
-                market = alert.get("labels", {}).get("metric", "Unknown Market")  # Extract market name
-                
+                print("\n📌 Processing Alert:")
+                print(json.dumps(alert, indent=2))  # Print full alert JSON for debugging
+
+                # ✅ Extract market name (try multiple fallback options)
+                labels = alert.get("labels", {})
+                market = labels.get("metric") or labels.get("instance") or labels.get("job") or "Unknown Market"
+
                 # ✅ Handle missing "values" for RESOLVED alerts
                 if "values" in alert and isinstance(alert["values"], dict):
                     value = alert["values"].get("A", "No Data")
@@ -85,6 +90,7 @@ def webhook():
     except Exception as e:
         print("❌ ERROR:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
