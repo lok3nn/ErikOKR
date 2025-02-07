@@ -39,6 +39,9 @@ def webhook():
     try:
         data = request.json  # Parse JSON payload from Grafana
 
+        # ✅ Debugging: Print full incoming payload
+        print("🚀 Incoming Webhook Data:", data)
+
         # ✅ Extract the timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
 
