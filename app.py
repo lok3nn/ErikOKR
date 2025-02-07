@@ -38,40 +38,36 @@ def webhook():
     """Handles incoming data from Grafana and logs it to Google Sheets."""
     try:
         data = request.json  # Parse JSON payload from Grafana
-        print("\n🚀 FULL INCOMING WEBHOOK DATA 🚀")
-        print(data)  # Debugging: Show full JSON payload
+
+        # 🚀 Log the full incoming JSON
+        print("🚀 FULL INCOMING WEBHOOK DATA 🚀")
+        print(data)
 
         # ✅ Extract timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
 
-        # ✅ Extract alert name
-        alert_name = data.get("title", "Unknown Alert")
+        # ✅ Extract the metric name
+        metric_name = data.get("title", "Unknown Metric")
 
-        # ✅ Extract alert state
+        # ✅ Extract the state (FIRING / RESOLVED)
         alert_state = data.get("state", "Unknown State")
 
-        # ✅ Process multiple alerts (markets)
+        # ✅ Extract and process multiple `evalMatches`
         values = []
-        if "alerts" in data and isinstance(data["alerts"], list):
-            for alert in data["alerts"]:
-                market = alert.get("labels", {}).get("metric", "Unknown Market")  # Extract market name
-                value = alert.get("values", {}).get("A", "No Data")  # Extract value from 'values.A'
-                print(f"📌 Extracted: {market} -> {value}")  # Debugging: Print extracted values
-                values.append([timestamp, alert_name, alert_state, market, value])  # Store each row
+        if "evalMatches" in data and isinstance(data["evalMatches"], list):
+            for match in data["evalMatches"]:
+                market = match.get("tags", {}).get("metric", "Unknown Market")  # Extract market name
+                value = match.get("value", "No Data")  # Extract value
+                values.append([timestamp, metric_name, alert_state, market, value])  # Store each row
 
         if not values:
-            values.append([timestamp, alert_name, alert_state, "No Market", "No Data"])  # Handle empty case
-
-        # ✅ Debug: Print the final values before sending to Sheets
-        print("✅ FINAL VALUES TO WRITE TO SHEETS:", values)
+            values.append([timestamp, metric_name, alert_state, "No Market", "No Data"])  # Handle empty case
 
         # ✅ Append all extracted rows to Google Sheets
         sheet.append_rows(values)
-        print("📄 Data successfully written to Google Sheets!")  # Debugging: Confirm write success
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
     except Exception as e:
-        print("❌ ERROR:", str(e))  # Debugging: Print any errors
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
