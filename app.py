@@ -60,9 +60,12 @@ def webhook():
             for alert in data["alerts"]:
                 print("\n📌 Processing Alert:")
                 print(json.dumps(alert, indent=2))  # Print full alert JSON for debugging
+                
+                # 🔍 Explicitly print labels for debugging
+                labels = alert.get("labels", {})
+                print(f"🔍 Alert Labels: {labels}")
 
                 # ✅ Extract market name (try multiple fallback options)
-                labels = alert.get("labels", {})
                 market = labels.get("metric") or labels.get("instance") or labels.get("job") or "Unknown Market"
 
                 # ✅ Handle missing "values" for RESOLVED alerts
@@ -90,7 +93,6 @@ def webhook():
     except Exception as e:
         print("❌ ERROR:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
