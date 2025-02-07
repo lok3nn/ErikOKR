@@ -38,6 +38,8 @@ def webhook():
     """Handles incoming data from Grafana and logs it to Google Sheets."""
     try:
         data = request.json  # Parse JSON payload from Grafana
+        print("\n🚀 FULL INCOMING WEBHOOK DATA 🚀")
+        print(data)  # Debugging: Show full JSON payload
 
         # ✅ Extract timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
@@ -54,16 +56,22 @@ def webhook():
             for alert in data["alerts"]:
                 market = alert.get("labels", {}).get("metric", "Unknown Market")  # Extract market name
                 value = alert.get("values", {}).get("A", "No Data")  # Extract value from 'values.A'
+                print(f"📌 Extracted: {market} -> {value}")  # Debugging: Print extracted values
                 values.append([timestamp, alert_name, alert_state, market, value])  # Store each row
 
         if not values:
             values.append([timestamp, alert_name, alert_state, "No Market", "No Data"])  # Handle empty case
 
+        # ✅ Debug: Print the final values before sending to Sheets
+        print("✅ FINAL VALUES TO WRITE TO SHEETS:", values)
+
         # ✅ Append all extracted rows to Google Sheets
         sheet.append_rows(values)
+        print("📄 Data successfully written to Google Sheets!")  # Debugging: Confirm write success
 
         return jsonify({"status": "success", "message": "Data added to Google Sheets"}), 200
     except Exception as e:
+        print("❌ ERROR:", str(e))  # Debugging: Print any errors
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
