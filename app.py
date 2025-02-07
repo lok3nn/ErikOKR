@@ -45,30 +45,28 @@ def webhook():
         print("\n🚀 FULL INCOMING WEBHOOK DATA 🚀")
         print(data)
 
-        # ✅ Check if the actual data is inside `message` as a JSON string
-        if "message" in data and isinstance(data["message"], str):
-            try:
-                extracted_data = json.loads(data["message"])  # Convert to dictionary
-                print("✅ Extracted JSON from 'message' field")
-                data = extracted_data  # Replace main data variable with extracted data
-            except json.JSONDecodeError:
-                print("⚠️ Failed to parse 'message' as JSON. Using original payload.")
-
         # ✅ Extract timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
 
         # ✅ Extract alert name
         alert_name = data.get("title", "Unknown Alert")
 
-        # ✅ Extract alert state
+        # ✅ Extract alert state (FIRING or RESOLVED)
         alert_state = data.get("state", "Unknown State")
 
         # ✅ Process multiple alerts (markets)
         values = []
         if "alerts" in data and isinstance(data["alerts"], list):
             for alert in data["alerts"]:
-                market = alert.get("labels", {}).get("metric", "Unknown Market")
-                value = alert.get("values", {}).get("A", "No Data")  # Extract value from 'values.A'
+                market = alert.get("labels", {}).get("metric", "Unknown Market")  # Extract market name
+                
+                # ✅ Handle missing "values" for RESOLVED alerts
+                if "values" in alert and isinstance(alert["values"], dict):
+                    value = alert["values"].get("A", "No Data")
+                else:
+                    # Fallback: Try extracting value from "valueString"
+                    value_string = alert.get("valueString", "")
+                    value = value_string.split("value=")[-1].strip(" ]") if "value=" in value_string else "No Data"
 
                 print(f"📌 Extracted: {market} -> {value}")  # Debugging
                 values.append([timestamp, alert_name, alert_state, market, value])  # Store each row
