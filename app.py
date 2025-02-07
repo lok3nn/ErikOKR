@@ -39,28 +39,25 @@ def webhook():
     try:
         data = request.json  # Parse JSON payload from Grafana
 
-        # ✅ Debugging: Print full incoming payload
-        print("🚀 Incoming Webhook Data:", data)
-
-        # ✅ Extract the timestamp
+        # ✅ Extract timestamp
         timestamp = data.get("startsAt", datetime.utcnow().isoformat())
 
-        # ✅ Extract the metric name
-        metric_name = data.get("title", "Unknown Metric")
+        # ✅ Extract alert name
+        alert_name = data.get("title", "Unknown Alert")
 
-        # ✅ Extract the state (FIRING / RESOLVED)
+        # ✅ Extract alert state
         alert_state = data.get("state", "Unknown State")
 
-        # ✅ Extract and process multiple `evalMatches`
+        # ✅ Process multiple alerts (markets)
         values = []
-        if "evalMatches" in data and isinstance(data["evalMatches"], list):
-            for match in data["evalMatches"]:
-                market = match.get("tags", {}).get("metric", "Unknown Market")  # Extract market name
-                value = match.get("value", "No Data")  # Extract value
-                values.append([timestamp, metric_name, alert_state, market, value])  # Store each row
+        if "alerts" in data and isinstance(data["alerts"], list):
+            for alert in data["alerts"]:
+                market = alert.get("labels", {}).get("metric", "Unknown Market")  # Extract market name
+                value = alert.get("values", {}).get("A", "No Data")  # Extract value from 'values.A'
+                values.append([timestamp, alert_name, alert_state, market, value])  # Store each row
 
         if not values:
-            values.append([timestamp, metric_name, alert_state, "No Market", "No Data"])  # Handle empty case
+            values.append([timestamp, alert_name, alert_state, "No Market", "No Data"])  # Handle empty case
 
         # ✅ Append all extracted rows to Google Sheets
         sheet.append_rows(values)
